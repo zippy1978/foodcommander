@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+'use strict';
+
+var pjson = require('../package.json');
+var program = require('commander');
+
+program
+    .version(pjson.version)
+    .command('franchise', 'interact with franchises')
+    .command('store', 'interact with stores')
+    .command('menu', 'query menus')
+    .command('order', 'place an order')
+    .parse(process.argv);
+
+if (process.argv.length === 2) {
+    program.help();
+}

@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+'use strict';
+
+var pjson = require('../package.json');
+var program = require('commander');
+var sprintf = require('sprintf-js').sprintf;
+
+var foodcommander = require('../lib/foodcommander.js');
+
+/**
+ * List available franchises on the console.
+ */
+var listAction = function() {
+    
+    foodcommander.franchise.list().then(function(franchises) {
+        
+        foodcommander.cli.formatObjectList('Franchise list', franchises).then(function(text) {
+            console.log(text); 
+        });
+        
+    }).fail(function(error) {
+        foodcommander.cli.handleError(error);
+    });
+};
+
+program
+    .description('interact with franchises')
+    .version(pjson.version)
+    .parse(process.argv);
+
+listAction();
+

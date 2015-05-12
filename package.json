@@ -1,0 +1,53 @@
+{
+  "name": "foodcommander",
+  "version": "0.0.1",
+  "description": "Food ordering tool",
+  "author": {
+    "name": "Gilles Grousset",
+    "email": "gi.grousset@gmail.com",
+    "url": "https://github.com/zippy1978"
+  },
+  "repository": "zippy1978/foodcommander",
+  "license": "MIT",
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "keywords": [
+    "foodcommander",
+    "food",
+    "order",
+    "api",
+    "pizza"
+  ],
+  "dependencies": {
+    "meow": "^3.1.0"
+  },
+  "devDependencies": {
+    "ascii-table": "0.0.8",
+    "cheerio": "^0.19.0",
+    "colors": "^1.0.3",
+    "commander": "^2.7.1",
+    "dominos": "^0.1.2",
+    "grunt-cli": "^0.1.13",
+    "grunt-contrib-jshint": "^0.11.0",
+    "grunt-contrib-nodeunit": "^0.4.1",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-mocha-cli": "^1.12.0",
+    "jshint-stylish": "^1.0.1",
+    "load-grunt-tasks": "^3.1.0",
+    "moment": "^2.10.2",
+    "progress": "^1.1.8",
+    "q": "^1.2.0",
+    "request": "^2.55.0",
+    "sprintf-js": "^1.0.2",
+    "time-grunt": "^1.1.0",
+    "winston": "^1.0.0"
+  },
+  "scripts": {
+    "test": "grunt"
+  },
+  "bin": {
+    "foodcom": "./bin/foodcom.js"
+  }
+}

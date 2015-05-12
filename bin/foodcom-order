@@ -1,0 +1,305 @@
+#!/usr/bin/env node
+'use strict';
+
+var pjson = require('../package.json');
+var program = require('commander');
+var sprintf = require('sprintf-js').sprintf;
+var Q = require("q");
+var ProgressBar = require('progress');
+var moment = require('moment');
+var winston = require('winston');
+
+var foodcommander = require('../lib/foodcommander.js');
+
+var currency; // Will be resolved later
+
+var checkManadatoryParams = function(program) {
+
+    if (!program.store) {
+        foodcommander.cli.handleError(new Error('Store is mandatory (-s)'));
+    }
+
+    if (!program.dishes) {
+        foodcommander.cli.handleError(new Error('Dishes is mandatory (-d)'));
+    }
+
+    if (!program.firstname) {
+        foodcommander.cli.handleError(new Error('First name is mandatory (--firstname)'));
+    }
+
+    if (!program.lastname) {
+        foodcommander.cli.handleError(new Error('Last name is mandatory (--lastname)'));
+    }
+    
+    if (!program.email) {
+        foodcommander.cli.handleError(new Error('Email is mandatory (--email)'));
+    }
+
+    if (!program.phone) {
+        foodcommander.cli.handleError(new Error('Phone is mandatory (--phone)'));
+    }
+
+    if (!program.streetnumber) { 
+        foodcommander.cli.handleError(new Error('Street number is mandatory (--streetnumber)'));
+    }
+
+    if (!program.street) { 
+        foodcommander.cli.handleError(new Error('Street is mandatory (--street)'));
+    }
+
+    if (!program.postalcode) { 
+        foodcommander.cli.handleError(new Error('Postal code is mandatory (-p)'));
+    }
+
+    if (!program.city) { 
+        foodcommander.cli.handleError(new Error('City is mandatory (-c)'));
+    }
+
+};
+
+/**
+ * Format order line data for display
+ */
+var orderLineFormatter = function(item, property) {
+
+    switch(property) {
+        case 'dish':
+            return sprintf('%s - %s', item.dish.id, item.dish.name);
+        case 'variant':
+            var variantString = '';
+            if (item.variant) {
+                var optionStrings = [];
+                for (var property in item.variant.options) {
+                    optionStrings.push(property + '=' + item.variant.options[property]); 
+                }
+                variantString = optionStrings.join('|');
+            }
+            return variantString;
+        case 'unitPrice':
+            return sprintf('%s %s', item.unitPrice, currency.symbol);
+        case 'price':
+            return sprintf('%s %s', item.price, currency.symbol);
+        default:
+            return null;
+    };
+};
+
+/**
+ * Fill an Order object with missing menu data.
+ */
+var populateOrderWithMenuData = function(menuModule, order, context) {
+
+    return menuModule.searchByStoreId(context.storeId).then(function(dishes) {
+
+        // Lines...
+        var error = null;
+        var grandTotal = 0;
+        order.lines.forEach(function(line) {
+
+            // Find dish
+            var foundDishes = dishes.filter(function(dish) {
+                return dish.id == line.dish.id;
+            });
+            if (foundDishes.length > 0) {
+
+                line.dish = foundDishes[0];
+
+                // Select first variant if nothing defined
+                if (!line.variant) {
+                    line.variant = line.dish.variants[0];
+                }
+
+                // Set price
+                if (line.variant.price) {
+                    line.unitPrice = line.variant.price;
+                } else {
+
+                    var foundVariants = line.dish.variants.filter(function (variant) {
+                        var match = true;
+
+                        for (var property in variant.options) {
+                            if (line.variant.options[property] !== variant.options[property]) {
+                                match = false;
+                                break;
+                            }
+                        }
+
+                        return match;
+                    });
+
+                    if (foundVariants.length > 0) {
+                        line.unitPrice = foundVariants[0].price;
+                    } else {
+                        error = new Error(sprintf('Variant for dish %s found in store %s', line.dish.id, context.storeId));;
+                    }
+                }
+
+                // Compute line price
+                if (line.unitPrice) {
+                    line.price = line.unitPrice * line.quantity;
+                    grandTotal += line.price;
+                }
+
+            } else {
+                error = new Error(sprintf('No dish with id %s found in store %s', line.dish.id, context.storeId));;
+            }
+        });
+
+        if (error) {
+            return Q.fcall(function () {
+                throw error;
+            });
+        }
+
+        // Order
+
+        // Populate address
+        order.address = context.address;
+        // Total price
+        order.totalPrice = grandTotal;
+
+        return Q.fcall(function() {
+            return order; 
+        });
+
+    });
+
+};
+
+var placeOrder = function(orderModule, order, dryRun) {
+
+    var bar = new ProgressBar('Ordering in progress [:bar] :percent :elapseds', {
+        complete: '=',
+        incomplete: ' ',
+        width: 20,
+        total: 100
+    });
+
+    return orderModule.place(order, dryRun).then(function(orderConfirmation) {
+        return Q.fcall(function() {
+            return orderConfirmation; 
+        });
+    }, function(error) {
+        console.log('\n');
+        return Q.fcall(function() {
+            throw error; 
+        });
+    }, function(progress) {
+        bar.tick(progress);
+    });
+};
+
+var displayDryRunInfo = function(dryRun) {
+    
+    if (dryRun) {
+        console.log('WARNING: command is running in dry run mode. No order will be issued.');
+    } else {
+        console.log('INFO: command is not running in dry run mode. A real order will be issued at the end of the process. Use --dryrun to enable dry run mode');
+    }
+};
+
+var orderAction = function(program) {
+
+    checkManadatoryParams(program);
+    
+    displayDryRunInfo(program.dryrun);
+
+    foodcommander.cli.buildContextFromArgs(program).then(function(context) {
+
+        return foodcommander.getCurrency(context.storeId).then(function(curr) {
+
+            currency = curr;
+
+            return foodcommander.cli.buildOrderFromDishesArg(program.dishes).then(function(order) {
+                
+                // Add comment to order
+                if (program.comment) {
+                    order.comment = program.comment;
+                }
+
+                return Q.all([foodcommander.cli.getModuleFromContext(context, 'menu'), 
+                              foodcommander.cli.getModuleFromContext(context, 'order')]).spread(function(menuModule, orderModule) {
+
+                    return populateOrderWithMenuData(menuModule, order, context).then(function(fullOrder) {
+
+                        return Q.all([
+                            foodcommander.cli.formatObjectList(sprintf('Your order - %s %s', fullOrder.totalPrice, currency.symbol), fullOrder.lines, orderLineFormatter),
+                            foodcommander.cli.formatObjectList('Your delivery address',[fullOrder.address])
+                        ]).spread(function(orderText, addressText) {
+
+                            // Display order content and delivery address
+                            console.log(sprintf('%s\n%s', orderText, addressText)); 
+
+                            // Ask for confirmation
+                            return foodcommander.cli.prompt('Do you confirm ?'.bold, ['y', 'n']).then(function(answer) {
+
+                                if (answer === 'y') {
+
+                                    return placeOrder(orderModule, fullOrder, program.dryrun).then(function(orderConfirmation) {
+                                        
+                                        console.log('Order complete !');
+                                        console.log(sprintf('Payment mode will be %s', orderConfirmation.paymentMode));
+                                        if (orderConfirmation.estimatedDeliveryDate) {
+                                            console.log(sprintf('Delivery time is estimated at %s',
+                                                    moment(orderConfirmation.estimatedDeliveryDate).format('HH:mm')));
+                                        } else {
+                                            console.log('Delivery time is unknown');
+                                        }
+                                        
+                                    });
+
+                                } else {
+                                    console.log('Maybe next time...');
+                                }
+                            });
+                        });
+
+                    });
+
+
+                });
+
+
+            });
+        });
+
+
+    }).fail(function(error) {
+
+        foodcommander.cli.handleError(error);
+    });
+};
+
+foodcommander.getDefaultFranchiseId().then(function(defaultFranchiseId) {
+
+    program
+        .description('place an order')
+        .version(pjson.version)
+        .option('-v, --verbose', 'outputs debug info')
+        .option('-f, --franchise [franchise]', 'franchise', defaultFranchiseId)
+        .option('-s, --store [store]', 'store')
+        .option('-d, --dishes [dishes]', 'dishes, example: -d REF1[size=large]*4,REF2[size=medium]*2')
+        .option('--firstname [firstname]', 'first name')
+        .option('--lastname [lastname]', 'last name')
+        .option('--email [email]', 'email address')
+        .option('--phone [phone]', 'phone number')
+        .option('--intercom [intercom]', 'intercom number')
+        .option('--building [building]', 'building name')
+        .option('--floor [floor]', 'floor')
+        .option('--streetnumber [streetnumber]', 'street number, use a dash for bis or ter, like this : 23-bis')
+        .option('--street [street]', 'street name')
+        .option('-p, --postalcode [postalcode]', 'postal code')
+        .option('-c, --city [city]', 'city')
+        .option('--comment [comment]', 'comment')
+        .option('--dryrun', "if set , order will not be sent at the end of the process. Useful for testing purpose")
+        .parse(process.argv);
+
+    if (program.verbose) {
+        winston.level = 'debug';
+    }
+    
+    orderAction(program);
+
+}).fail(function(error) {
+    foodcommander.cli.handleError(error);
+});

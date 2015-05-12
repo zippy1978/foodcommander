@@ -1,0 +1,49 @@
+#!/usr/bin/env node
+'use strict';
+
+var pjson = require('../package.json');
+var program = require('commander');
+
+var foodcommander = require('../lib/foodcommander.js');
+
+var searchAction = function(program) {
+
+    foodcommander.cli.buildContextFromArgs(program).then(function(context) {
+
+        return foodcommander.cli.getModuleFromContext(context, 'store').then(function(module) {
+
+            return module.searchByPostalCode(context.postalCode).then(function(stores) {
+                
+                foodcommander.cli.formatObjectList('Store list', stores, function(item, property) {
+                    if (property === 'currency') {
+                        return item.currency.symbol;
+                    } else {
+                        return null;
+                    }
+                }).then(function(text) {
+                    console.log(text); 
+                });
+            });
+            
+        });
+
+    }).fail(function(error) {
+        foodcommander.cli.handleError(error);
+    });
+
+};
+
+foodcommander.getDefaultFranchiseId()
+    .then(function(defaultFranchiseId) {
+
+    program
+        .description('interact with stores')
+        .version(pjson.version)
+        .option('-f, --franchise [franchise]', 'franchise', defaultFranchiseId)
+        .option('-p, --postalcode [postalcode]', 'postal code')
+        .parse(process.argv);
+
+    searchAction(program);
+
+});
+

@@ -1,0 +1,75 @@
+#!/usr/bin/env node
+'use strict';
+
+var pjson = require('../package.json');
+var program = require('commander');
+var sprintf = require('sprintf-js').sprintf;
+var Q = require("q");
+
+var foodcommander = require('../lib/foodcommander.js');
+
+
+/**
+ * Format dishes string representation.
+ */
+var dishFormatter = function(item, property) {
+
+    // Custom display for variants
+    if (property === 'variants') {
+        var variantStrings = [];
+        var variants = item.variants;
+        variants.forEach(function(variant) {
+            var optionStrings = [];
+            for (var property in variant.options) {
+                optionStrings.push(property + '=' + variant.options[property]); 
+            }
+            variantStrings.push(sprintf('[%s] %d %s', optionStrings.join('|'), variant.price, '€'));
+        });
+        return variantStrings.join(' - ');
+    } else {
+        return null;
+    }
+
+};
+
+/**
+ * Display menu of a given store.
+ */
+var listAction = function() {
+
+    // Check for mandatory params
+    if (!program.store) {
+        foodcommander.cli.handleError(new Error('Store is mandatory (-s)'));
+    }
+
+    foodcommander.cli.buildContextFromArgs(program).then(function(context) {
+
+        return foodcommander.cli.getModuleFromContext(context, 'menu').then(function(module) {
+
+            return module.searchByStoreId(context.storeId).then(function(dishes) {
+                
+                return foodcommander.cli.formatObjectList('Menu', dishes, dishFormatter).then(function(text) {
+        console.log(text); 
+    });
+                
+            });
+        });
+
+    }).fail(function(error) {
+        foodcommander.cli.handleError(error);
+    });
+};
+
+foodcommander.getDefaultFranchiseId().then(function(defaultFranchiseId) {
+
+    program
+        .description('query menus')
+        .version(pjson.version)
+        .option('-f, --franchise [franchise]', 'franchise', defaultFranchiseId)
+        .option('-s, --store [store]', 'store')
+        .parse(process.argv);
+
+    listAction();
+
+});
+
