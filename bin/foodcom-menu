@@ -71,5 +71,7 @@ foodcommander.getDefaultFranchiseId().then(function(defaultFranchiseId) {
 
     listAction();
 
+}).fail(function(error) {
+    foodcommander.cli.handleError(error);
 });
 

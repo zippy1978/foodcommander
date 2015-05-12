@@ -45,5 +45,7 @@ foodcommander.getDefaultFranchiseId()
 
     searchAction(program);
 
+}).fail(function(error) {
+    foodcommander.cli.handleError(error);
 });
 

@@ -30,7 +30,7 @@ var checkManadatoryParams = function(program) {
     if (!program.lastname) {
         foodcommander.cli.handleError(new Error('Last name is mandatory (--lastname)'));
     }
-    
+
     if (!program.email) {
         foodcommander.cli.handleError(new Error('Email is mandatory (--email)'));
     }
@@ -166,7 +166,7 @@ var populateOrderWithMenuData = function(menuModule, order, context) {
 
 };
 
-var placeOrder = function(orderModule, order, dryRun) {
+var placeOrder = function(orderModule, order, program) {
 
     var bar = new ProgressBar('Ordering in progress [:bar] :percent :elapseds', {
         complete: '=',
@@ -175,7 +175,7 @@ var placeOrder = function(orderModule, order, dryRun) {
         total: 100
     });
 
-    return orderModule.place(order, dryRun).then(function(orderConfirmation) {
+    return orderModule.place(order, program.dryrun).then(function(orderConfirmation) {
         return Q.fcall(function() {
             return orderConfirmation; 
         });
@@ -185,12 +185,27 @@ var placeOrder = function(orderModule, order, dryRun) {
             throw error; 
         });
     }, function(progress) {
-        bar.tick(progress);
+        // No progress bar in batch mode
+        if (!program.batch) {
+            bar.tick(progress);
+        }
     });
 };
 
+var displayOrderCompleteInfo = function(orderConfirmation) {
+
+    console.log('Order complete !');
+    console.log(sprintf('Payment mode will be %s', orderConfirmation.paymentMode));
+    if (orderConfirmation.estimatedDeliveryDate) {
+        console.log(sprintf('Delivery time is estimated at %s',
+                            moment(orderConfirmation.estimatedDeliveryDate).format('HH:mm')));
+    } else {
+        console.log('Delivery time is unknown');
+    }
+};
+
 var displayDryRunInfo = function(dryRun) {
-    
+
     if (dryRun) {
         console.log('WARNING: command is running in dry run mode. No order will be issued.');
     } else {
@@ -201,7 +216,7 @@ var displayDryRunInfo = function(dryRun) {
 var orderAction = function(program) {
 
     checkManadatoryParams(program);
-    
+
     displayDryRunInfo(program.dryrun);
 
     foodcommander.cli.buildContextFromArgs(program).then(function(context) {
@@ -211,7 +226,7 @@ var orderAction = function(program) {
             currency = curr;
 
             return foodcommander.cli.buildOrderFromDishesArg(program.dishes).then(function(order) {
-                
+
                 // Add comment to order
                 if (program.comment) {
                     order.comment = program.comment;
@@ -227,31 +242,38 @@ var orderAction = function(program) {
                             foodcommander.cli.formatObjectList('Your delivery address',[fullOrder.address])
                         ]).spread(function(orderText, addressText) {
 
-                            // Display order content and delivery address
-                            console.log(sprintf('%s\n%s', orderText, addressText)); 
+                            // If ot in batch mode
+                            if (!program.batch) {
 
-                            // Ask for confirmation
-                            return foodcommander.cli.prompt('Do you confirm ?'.bold, ['y', 'n']).then(function(answer) {
+                                // Display order content and delivery address
+                                console.log(sprintf('%s\n%s', orderText, addressText)); 
 
-                                if (answer === 'y') {
+                                // Ask for confirmation
+                                return foodcommander.cli.prompt('Do you confirm ?'.bold, ['y', 'n']).then(function(answer) {
 
-                                    return placeOrder(orderModule, fullOrder, program.dryrun).then(function(orderConfirmation) {
-                                        
-                                        console.log('Order complete !');
-                                        console.log(sprintf('Payment mode will be %s', orderConfirmation.paymentMode));
-                                        if (orderConfirmation.estimatedDeliveryDate) {
-                                            console.log(sprintf('Delivery time is estimated at %s',
-                                                    moment(orderConfirmation.estimatedDeliveryDate).format('HH:mm')));
-                                        } else {
-                                            console.log('Delivery time is unknown');
-                                        }
-                                        
-                                    });
+                                    if (answer === 'y') {
 
-                                } else {
-                                    console.log('Maybe next time...');
-                                }
-                            });
+                                        return placeOrder(orderModule, fullOrder, program).then(function(orderConfirmation) {
+
+                                            displayOrderCompleteInfo(orderConfirmation);
+
+                                        });
+
+                                    } else {
+                                        console.log('Maybe next time...');
+                                    }
+                                });
+                                
+                            } else {
+
+                                // In batch mode...
+
+                                return placeOrder(orderModule, fullOrder, program).then(function(orderConfirmation) {
+
+                                    displayOrderCompleteInfo(orderConfirmation);
+
+                                });
+                            }
                         });
 
                     });
@@ -275,6 +297,7 @@ foodcommander.getDefaultFranchiseId().then(function(defaultFranchiseId) {
     program
         .description('place an order')
         .version(pjson.version)
+        .option('-b, --batch', 'batch mode (no user interaction required)')
         .option('-v, --verbose', 'outputs debug info')
         .option('-f, --franchise [franchise]', 'franchise', defaultFranchiseId)
         .option('-s, --store [store]', 'store')
@@ -297,7 +320,7 @@ foodcommander.getDefaultFranchiseId().then(function(defaultFranchiseId) {
     if (program.verbose) {
         winston.level = 'debug';
     }
-    
+
     orderAction(program);
 
 }).fail(function(error) {
