@@ -6,7 +6,7 @@ describe('cli module', function () {
 
     it('must format error', function (done) {
         cli.formatErrorMessage(new Error('message')).then(function(result) {
-            assert.equal('Error[Error] message', result);
+            assert.equal('[Error] message', result);
             done();
         });
     });
