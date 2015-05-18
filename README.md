@@ -1,4 +1,4 @@
-# foodcommander
+# foodcommander ![image](https://travis-ci.org/zippy1978/foodcommander.svg?branch=develop)
 Food ordering tool.
 
 ## Installation
