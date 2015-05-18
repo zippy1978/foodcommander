@@ -21,9 +21,7 @@
     "pizza"
   ],
   "dependencies": {
-    "meow": "^3.1.0"
-  },
-  "devDependencies": {
+    "meow": "^3.1.0",
     "ascii-table": "0.0.8",
     "cheerio": "^0.19.0",
     "colors": "^1.0.3",
@@ -49,6 +47,6 @@
     "test": "grunt"
   },
   "bin": {
-    "foodcom": "./bin/foodcom.js"
+    "foodcom": "./bin/foodcom"
   }
 }
