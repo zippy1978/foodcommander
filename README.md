@@ -1,6 +1,10 @@
 # foodcommander
 Food ordering tool.
 
+## Installation
+
+  npm install foodcommander -g
+
 
 ## Example : order pizzas at Domino's France with command lines
 

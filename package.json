@@ -44,6 +44,7 @@
     "time-grunt": "^1.1.0",
     "winston": "^1.0.0"
   },
+  "main": "./lib/foodcommander.js",
   "scripts": {
     "test": "grunt"
   },
