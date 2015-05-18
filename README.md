@@ -62,7 +62,9 @@ And get available pizzas with prices and variants:
 	
 Then you just have to wait...
 
-## Franchises
+## Command line usage
+
+### Franchises
 
 At the time the only supported franchise is Domino's Pizza France but it is easy to implement a new franchise (any contribution is welcomed !).
 
@@ -81,3 +83,95 @@ To look at available franchises:
 The first franchise of the list is the default.
 
 To change the franchise use the *-f* switch with any command.
+
+Command line help:
+
+	$ foodcom franchise --help
+	
+	  Usage: foodcom-franchise [options]
+	
+	  interact with franchises
+	
+	  Options:
+	
+	    -h, --help     output usage information
+	    -V, --version  output the version number
+	    
+### Store
+
+Use the *store* subcommand to find stores arround you.
+
+	$ foodcom store -p 34000
+	
+Command line help:
+
+	$ foodcom store --help
+	
+	  Usage: foodcom-store [options]
+	
+	  interact with stores
+	
+	  Options:
+	
+	    -h, --help                     output usage information
+	    -V, --version                  output the version number
+	    -f, --franchise [franchise]    franchise
+	    -p, --postalcode [postalcode]  postal code
+	    
+### Menu
+
+List store dishes and prices.
+
+	$ foodcom menu -s 31889
+	
+Command line help:
+
+	$ foodcom menu --help
+	
+	  Usage: foodcom-menu [options]
+	
+	  query menus
+	
+	  Options:
+	
+	    -h, --help                   output usage information
+	    -V, --version                output the version number
+	    -f, --franchise [franchise]  franchise
+	    -s, --store [store]          store
+	    
+### Order
+
+Place an order.
+
+	$ foodcom order -d PBAS[size=large]*2,P4FR --firstname Homer --lastname Simpson --email homer.simpson@somewhere.com --street "evergreen terrace" --streetnumber 74 --phone 0999555555 -p 34090 -c montpellier -s 31972
+
+Command line help:
+
+	$ foodcom order --help
+	
+	  Usage: foodcom-order [options]
+	
+	  place an order
+	
+	  Options:
+	
+	    -h, --help                     output usage information
+	    -V, --version                  output the version number
+	    -b, --batch                    batch mode (no user interaction required)
+	    -v, --verbose                  outputs debug info
+	    -f, --franchise [franchise]    franchise
+	    -s, --store [store]            store
+	    -d, --dishes [dishes]          dishes, example: -d REF1[size=large]*4,REF2[size=medium]*2
+	    --firstname [firstname]        first name
+	    --lastname [lastname]          last name
+	    --email [email]                email address
+	    --phone [phone]                phone number
+	    --intercom [intercom]          intercom number
+	    --building [building]          building name
+	    --floor [floor]                floor
+	    --streetnumber [streetnumber]  street number, use a dash for bis or ter, like this : 23-bis
+	    --street [street]              street name
+	    -p, --postalcode [postalcode]  postal code
+	    -c, --city [city]              city
+	    --comment [comment]            comment
+	    --dryrun                       if set , order will not be sent at the end of the process. Useful for testing purpose
