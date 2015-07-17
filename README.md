@@ -179,3 +179,12 @@ Command line help:
 	    -c, --city [city]              city
 	    --comment [comment]            comment
 	    --dryrun                       if set , order will not be sent at the end of the process. Useful for testing purpose
+
+## Release Notes
+
+### 0.0.2
+ * bug fixes
+ * removed unused dependencies
+
+### 0.0.1
+ * Initial version
